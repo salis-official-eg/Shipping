@@ -99,7 +99,7 @@ function boot(){
  $('#app').innerHTML=`<header><div class=logo>${LOGO(26)}</div><div class=bt><b>SALIS</b><small>تطبيق الشحن · ${x(S.name)}</small></div><button class=ib data-act=refresh aria-label=تحديث title=تحديث>${icn('refresh')}</button><button class=ib data-act=out aria-label="تسجيل الخروج" title="تسجيل الخروج">${icn('out')}</button></header>
  <main><div class=chips id=chips></div><input id=sq placeholder="ابحث برقم الطلب SL-0012 أو الاسم أو الموبايل" value="${x(S.q)}"><div id=ol></div></main>`;
  $('#sq').oninput=e=>{S.q=e.target.value;list()};
- load();
+ hinit();load();
 }
 async function load(silent){const{data,error}=await db.rpc('ship_orders',{t:S.tok});
  if(error){if(!silent)toast('تعذّر التحميل — تأكد من النت',1);return false}
@@ -141,7 +141,7 @@ async function setSt(id,to){const o=S.orders.find(o=>o.id==id);if(!o||S.busy)ret
  if(data.error){toast(data.error,1);return load(true)}
  toast('تم التحديث ✓');await load(true)}
 document.addEventListener('click',async e=>{
- const t=e.target.closest('[data-tab]');if(t){S.tab=t.dataset.tab;return draw()}
+ const t=e.target.closest('[data-tab]');if(t){S.tab=t.dataset.tab;hpush(S.tab);return draw()}
  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=+b.dataset.id;
  if(a=='tog'){S.open=S.open==id?null:id;return list()}
  if(a=='set')return setSt(id,b.dataset.to);
@@ -161,6 +161,21 @@ async function doRet(){const el=$('#rt'),id=+el.dataset.oid,items=[...el.querySe
  const{data,error}=await db.rpc('ship_return',{t:S.tok,p_order:id,p_items:items,p_reason:el.querySelector('[data-rr]').value.trim()});S.busy=false;
  if(error)return toast('تعذّر الحفظ — جرّب تاني',1);if(data&&data.error)return toast(data.error,1);el.remove();toast('تم تسجيل المرتجع ✓');await load(true)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;if(a=='rtn')openRet(+b.dataset.id);else if(a=='rtx')$('#rt').remove();else if(a=='rtgo')doRet()});
+/* ---------- history: back = one step, refresh = same page ---------- */
+const OV=["rt"];
+const ovOpen=()=>OV.some(i=>document.getElementById(i))||!!document.querySelector('.sb.open');
+function hpush(t){const st=history.state||{};if(st.ov){history.replaceState({t},'','#'+t);return}if(st.t!==t)history.pushState({t},'','#'+t)}
+function hinit(){const h=location.hash.slice(1);if(TABS.some(t=>t[0]==h))S.tab=h;
+ if(!(history.state&&history.state.t===S.tab)){history.replaceState({t:'new'},'','#new');if(S.tab!='new')history.pushState({t:S.tab},'','#'+S.tab)}}
+new MutationObserver(ms=>{for(const m of ms){m.addedNodes.forEach(n=>{if(n.id&&OV.includes(n.id))history.pushState({ov:n.id},'')});
+ m.removedNodes.forEach(n=>{if(n.id&&OV.includes(n.id))setTimeout(()=>{if(history.state&&history.state.ov&&!ovOpen())history.back()},0)})}}).observe(document.body,{childList:true});
+addEventListener('popstate',e=>{const st=e.state||{};let c=0;
+ OV.forEach(i=>{const el=document.getElementById(i);if(el){el.remove();c=1}});
+ const sb=document.getElementById('sb');if(sb&&sb.classList.contains('open')){sb.classList.remove('open');c=1}
+ if(st.ov&&!c){history.back();return}
+ if(st.t&&st.t!==S.tab){S.tab=st.t;draw()}});
+document.addEventListener('click',e=>{if(e.target.closest('[data-act=sbo]'))history.pushState({ov:'sb'},'');else if(e.target.closest('[data-act=sbx]')&&history.state&&history.state.ov)history.back()},true);
+
 boot();
 </script>
 </body>
