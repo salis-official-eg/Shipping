@@ -116,8 +116,8 @@ const hasRet=o=>(o.returns||[]).length>0||o.status=='cancelled';
 const rets=o=>(o.returns||[]).length?`<div class=bd>${o.returns.map(r=>`<div class=ln><span><span class=pill style="background:${(KIND[r.kind]||['','#888'])[1]}">${(KIND[r.kind]||[r.kind])[0]}</span> ${(r.items||[]).map(i=>x(i.name)+' ×'+i.qty).join('، ')}${r.reason?' — '+x(r.reason):''}</span><span></span><span>${r.refund_amount?M(r.refund_amount):''}</span></div>`).join('')}</div>`:'';
 function card(o){const[st,c]=ST[o.status]||[o.status,'#888'],op=S.open==o.id,
  waBtn=`<a class="btn w${o.status=='new'?' big':''}" href="${x(wa(o.customer_phone))+'?text='+encodeURIComponent(msg(o))}" target=_blank rel=noopener>💬 ${o.status=='new'?'تواصل واتساب لتأكيد الأوردر':'واتساب'}</a>`;
- const acts={new:`${waBtn}<button class="btn big" data-act=set data-id=${o.id} data-to=confirmed>✅ تأكيد الأوردر</button>`,
-  confirmed:`${waBtn}<button class="btn big" data-act=set data-id=${o.id} data-to=shipped>📦 تم الشحن</button>`,
+ const acts={new:`${waBtn}<button class="btn big" data-act=set data-id=${o.id} data-to=confirmed>✅ تأكيد الأوردر</button><button class="btn d big" data-act=set data-id=${o.id} data-to=cancelled>❌ إلغاء الأوردر</button>`,
+  confirmed:`${waBtn}<button class="btn big" data-act=set data-id=${o.id} data-to=shipped>📦 تم الشحن</button><button class="btn d" data-act=set data-id=${o.id} data-to=cancelled>❌ إلغاء الأوردر</button>`,
   shipped:`${waBtn}<button class="btn big" data-act=set data-id=${o.id} data-to=delivered>✅ تم التسليم</button><button class="btn s" data-act=set data-id=${o.id} data-to=confirmed>↩ رجوع لمؤكد</button>`,
   delivered:`<button class="btn s" data-act=set data-id=${o.id} data-to=shipped>↩ رجوع لـ في الشحن</button>`,
   cancelled:`<p class=mut style="margin:0">الطلب ده اتلغى — متشحنهوش.</p>`}[o.status]||'';
@@ -134,7 +134,7 @@ function list(){const q=S.q.trim().toLowerCase().replace(/^sl-?0*/,''),
  L=S.orders.filter(o=>(S.tab=='returns'?hasRet(o):o.status==S.tab)&&(!q||`${o.id} ${oc(o.id)} ${o.customer_name} ${o.customer_phone} ${o.customer_code||''}`.toLowerCase().includes(q)));
  const el=$('#ol');if(el)el.innerHTML=L.map(card).join('')||'<p class=mut style="text-align:center;margin-top:30px">مفيش طلبات هنا.</p>'}
 async function setSt(id,to){const o=S.orders.find(o=>o.id==id);if(!o||S.busy)return;
- const m={confirmed:o.status=='new'?'تأكيد الطلب '+oc(id)+'؟':'رجوع الطلب '+oc(id)+' لحالة "مؤكد"؟',shipped:o.status=='delivered'?'رجوع الطلب '+oc(id)+' لحالة "في الشحن"؟':'تأكيد إن الطلب '+oc(id)+' اتشحن؟',delivered:'تأكيد إن الطلب '+oc(id)+' اتسلّم وتم تحصيل '+M(o.total_amount)+'؟'}[to];
+ const m={confirmed:o.status=='new'?'تأكيد الطلب '+oc(id)+'؟':'رجوع الطلب '+oc(id)+' لحالة "مؤكد"؟',shipped:o.status=='delivered'?'رجوع الطلب '+oc(id)+' لحالة "في الشحن"؟':'تأكيد إن الطلب '+oc(id)+' اتشحن؟',delivered:'تأكيد إن الطلب '+oc(id)+' اتسلّم وتم تحصيل '+M(o.total_amount)+'؟',cancelled:'إلغاء الطلب '+oc(id)+'؟ المخزون والكوبون هيرجعوا، ومينفعش الطلب يتفتح تاني.'}[to];
  if(!confirm(m))return;S.busy=true;
  const{data,error}=await db.rpc('ship_set_status',{t:S.tok,p_id:id,p_to:to});S.busy=false;
  if(error)return toast('تعذّر الحفظ — جرّب تاني',1);
