@@ -55,6 +55,10 @@ label{display:grid;gap:3px;font-size:13px;color:var(--mut)}
 .login .mut{text-align:center;color:#ABA79D;margin:2px 0 14px}
 .login .card{--bg:#F4F2EC;--line:#E2DED4;--ink:#3D3B36;--mut:#8A857C;--card:#FBFAF7;--acc:#5E7F63;--onacc:#fff;background:#FBFAF7;color:#3D3B36;border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:20px;box-shadow:0 30px 70px -24px rgba(0,0,0,.65)}
 .login .row{margin-top:18px}
+#rt{position:fixed;inset:0;background:rgba(10,16,28,.55);z-index:25;display:flex;align-items:flex-end;justify-content:center}
+#rt .sheet{background:var(--bg);width:100%;max-width:780px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:14px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+select{border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:8px;color:inherit;font:inherit}
+@media(min-width:1000px){main{max-width:1100px}#ol{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}#ol .card{margin:0}#ol>p{grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -69,7 +73,7 @@ const when=d=>new Date(d).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',dateSt
 const oc=id=>'SL-'+String(id).padStart(4,'0');
 const wa=p=>{const d=String(p||'').replace(/\D/g,'');return 'https://wa.me/'+(d[0]=='0'?'2'+d:d)};
 const ST={new:['بانتظار التأكيد','#2563eb'],confirmed:['مؤكد — جاهز للشحن','#d97706'],shipped:['في الشحن','#7c3aed'],delivered:['تم التسليم','#059669'],cancelled:['ملغي','#dc2626']};
-const TABS=[['new','بانتظار التأكيد'],['confirmed','جاهز للشحن'],['shipped','في الشحن'],['delivered','تم التسليم'],['cancelled','ملغي']];
+const TABS=[['new','بانتظار التأكيد'],['confirmed','جاهز للشحن'],['shipped','في الشحن'],['delivered','تم التسليم'],['cancelled','ملغي'],['returns','مرتجعات']];
 const LOGO=(z=26)=>`<svg viewBox="0 0 100 100" width="${z}" height="${z}" fill="none" aria-hidden="true"><path d="M44 35C44 27 36 23 29 26C22 29 22 39 29 44C36 49 46 53 45 63C44 72 34 76 26 73C19 70 18 63 21 58" stroke="#94B097" stroke-width="9" stroke-linecap="round"/><path d="M45 55C58 52 72 41 72 26C72 16 63 13 57 20C50 28 49 52 60 66C68 75 79 71 85 63" stroke="#94B097" stroke-width="9" stroke-linecap="round"/></svg>`;
 const ICO={refresh:'<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',out:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>'};
 const icn=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
@@ -103,10 +107,13 @@ async function load(silent){const{data,error}=await db.rpc('ship_orders',{t:S.to
  const had=new Set(S.orders.map(o=>o.id)),fresh=S.seen?data.filter(o=>!had.has(o.id)&&['new','confirmed'].includes(o.status)):[];
  S.orders=data;S.seen=true;if(fresh.length)toast('🔔 طلب جديد: '+fresh.map(o=>oc(o.id)).join('، '));draw();return true}
 function draw(){const c=s=>S.orders.filter(o=>o.status==s).length;
- const el=$('#chips');if(!el)return;el.innerHTML=TABS.map(t=>`<button class="chip${S.tab==t[0]?' on':''}" data-tab=${t[0]}>${t[1]} (${c(t[0])})</button>`).join('');list()}
+ const el=$('#chips');if(!el)return;el.innerHTML=TABS.map(t=>`<button class="chip${S.tab==t[0]?' on':''}" data-tab=${t[0]}>${t[1]} (${t[0]=='returns'?S.orders.filter(hasRet).length:c(t[0])})</button>`).join('');list()}
 function msg(o){const items=o.items.map(i=>`- ${i.name} (${i.size}${i.color?' / '+i.color:''}) × ${i.qty} — ${i.price*i.qty} ج.م`).join('\n');
  return `أهلاً ${o.customer_name} 🌿\nمعاك سَلِسْ — بنأكد طلبك:\n\n🧾 كود الطلب: ${oc(o.id)}\n${o.customer_code?`🆔 كود العميل: ${o.customer_code}\n`:''}👤 الاسم: ${o.customer_name}\n📞 الموبايل: ${o.customer_phone}\n📍 العنوان: ${o.governorate?o.governorate+' — ':''}${o.customer_address}\n\n🛍️ المنتجات:\n${items}\n\nالمجموع: ${o.subtotal} ج.م${o.discount?`\nالخصم${o.coupon_code?' ('+o.coupon_code+')':''}: -${o.discount} ج.م`:''}\nالشحن: ${o.shipping_fee?o.shipping_fee+' ج.م':'مجاني'}\n💰 المطلوب تحصيله عند الاستلام: ${o.total_amount} ج.م\n\nمن فضلك رد بكلمة "تأكيد" لو كل البيانات صح، أو ابعتلنا التعديل المطلوب. شكراً لثقتك 🌿`}
 function copyTxt(o){return `${oc(o.id)}${o.customer_code?' ('+o.customer_code+')':''}\nالاسم: ${o.customer_name}\nالموبايل: ${o.customer_phone}\nالمحافظة: ${o.governorate||'-'}\nالعنوان: ${o.customer_address}\n`+o.items.map(i=>`- ${i.name} (${i.size}${i.color?' / '+i.color:''}) × ${i.qty}`).join('\n')+`\nالمطلوب تحصيله: ${o.total_amount} جنيه`+(o.notes?`\nملاحظات: ${o.notes}`:'')}
+const KIND={cancelled_by_customer:['ملغي من العميل','#d97706'],cancelled_by_admin:['ملغي من الإدارة','#dc2626'],returned:['مرتجع','#7c3aed']};
+const hasRet=o=>(o.returns||[]).length>0||o.status=='cancelled';
+const rets=o=>(o.returns||[]).length?`<div class=bd>${o.returns.map(r=>`<div class=ln><span><span class=pill style="background:${(KIND[r.kind]||['','#888'])[1]}">${(KIND[r.kind]||[r.kind])[0]}</span> ${(r.items||[]).map(i=>x(i.name)+' ×'+i.qty).join('، ')}${r.reason?' — '+x(r.reason):''}</span><span></span><span>${r.refund_amount?M(r.refund_amount):''}</span></div>`).join('')}</div>`:'';
 function card(o){const[st,c]=ST[o.status]||[o.status,'#888'],op=S.open==o.id,
  waBtn=`<a class="btn w${o.status=='new'?' big':''}" href="${x(wa(o.customer_phone))+'?text='+encodeURIComponent(msg(o))}" target=_blank rel=noopener>💬 ${o.status=='new'?'تواصل واتساب لتأكيد الأوردر':'واتساب'}</a>`;
  const acts={new:`${waBtn}<button class="btn big" data-act=set data-id=${o.id} data-to=confirmed>✅ تأكيد الأوردر</button>`,
@@ -115,16 +122,16 @@ function card(o){const[st,c]=ST[o.status]||[o.status,'#888'],op=S.open==o.id,
   delivered:`<button class="btn s" data-act=set data-id=${o.id} data-to=shipped>↩ رجوع لـ في الشحن</button>`,
   cancelled:`<p class=mut style="margin:0">الطلب ده اتلغى — متشحنهوش.</p>`}[o.status]||'';
  return `<article class=card><div data-act=tog data-id=${o.id} style="cursor:pointer"><div class=top><span class=code>${oc(o.id)}${o.customer_code?` <span class=mut>· ${x(o.customer_code)}</span>`:''}</span><span class=pill style="background:${c}">${st}</span></div>
- <div style="margin-top:4px"><b>${x(o.customer_name)}</b> — <span dir=ltr>${x(o.customer_phone)}</span></div>
+ ${o.status=='new'&&o.data_confirmed_at?'<div style="margin-top:4px"><span class=pill style="background:#059669">✓ العميل أكّد بياناته فقط — لسه محتاج تأكيد الأوردر</span></div>':''}<div style="margin-top:4px"><b>${x(o.customer_name)}</b> — <span dir=ltr>${x(o.customer_phone)}</span></div>
  <div class=mut>📍 ${o.governorate?x(o.governorate)+' — ':''}${x(o.customer_address)}</div><div class=mut>${when(o.created_at)}</div>
  <div class=cash><span>المطلوب تحصيله</span><b>${M(o.total_amount)}</b></div></div>
  ${op?`<div class=bd>${o.items.map(i=>`<div class=ln><span>${x(i.name)}<br><small class=mut>${x(i.size)}${i.color?' — '+x(i.color):''}</small></span><span>× ${Number(i.qty)||0}</span><span>${M(i.price*i.qty)}</span></div>`).join('')}
  <div class=ln><span>المجموع</span><span></span><span>${M(o.subtotal)}</span></div>${o.discount?`<div class=ln><span>خصم ${x(o.coupon_code||'')}</span><span></span><span>-${M(o.discount)}</span></div>`:''}<div class=ln><span>الشحن</span><span></span><span>${o.shipping_fee?M(o.shipping_fee):'مجاني'}</span></div>
  ${o.notes?`<p class=mut>📝 ${x(o.notes)}</p>`:''}<p class=mut>${o.confirmed_at?'تأكيد: '+when(o.confirmed_at)+' · ':''}${o.shipped_at?'شحن: '+when(o.shipped_at)+' · ':''}${o.delivered_at?'تسليم: '+when(o.delivered_at):''}</p>
  <div class=row><button class="btn s" data-act=copy data-id=${o.id}>📋 نسخ بيانات الشحن</button><a class="btn s" href="tel:${x(String(o.customer_phone).replace(/[^\d+]/g,''))}">📞 اتصال</a></div></div>`:''}
- <div class=row>${acts}</div></article>`}
+ ${rets(o)}<div class=row>${acts}${['shipped','delivered'].includes(o.status)?`<button class="btn s" data-act=rtn data-id=${o.id}>↩ مرتجع</button>`:''}</div></article>`}
 function list(){const q=S.q.trim().toLowerCase().replace(/^sl-?0*/,''),
- L=S.orders.filter(o=>o.status==S.tab&&(!q||`${o.id} ${oc(o.id)} ${o.customer_name} ${o.customer_phone} ${o.customer_code||''}`.toLowerCase().includes(q)));
+ L=S.orders.filter(o=>(S.tab=='returns'?hasRet(o):o.status==S.tab)&&(!q||`${o.id} ${oc(o.id)} ${o.customer_name} ${o.customer_phone} ${o.customer_code||''}`.toLowerCase().includes(q)));
  const el=$('#ol');if(el)el.innerHTML=L.map(card).join('')||'<p class=mut style="text-align:center;margin-top:30px">مفيش طلبات هنا.</p>'}
 async function setSt(id,to){const o=S.orders.find(o=>o.id==id);if(!o||S.busy)return;
  const m={confirmed:o.status=='new'?'تأكيد الطلب '+oc(id)+'؟':'رجوع الطلب '+oc(id)+' لحالة "مؤكد"؟',shipped:o.status=='delivered'?'رجوع الطلب '+oc(id)+' لحالة "في الشحن"؟':'تأكيد إن الطلب '+oc(id)+' اتشحن؟',delivered:'تأكيد إن الطلب '+oc(id)+' اتسلّم وتم تحصيل '+M(o.total_amount)+'؟'}[to];
@@ -144,6 +151,16 @@ document.addEventListener('click',async e=>{
 });
 setInterval(()=>{if(S.tok&&!document.hidden&&!S.busy&&$('#ol'))load(true)},30000);
 if('serviceWorker' in navigator)navigator.serviceWorker.getRegistrations().then(r=>r.forEach(g=>g.unregister())).catch(()=>{});
+
+/* ---------- مرتجعات ---------- */
+function openRet(id){const o=S.orders.find(k=>k.id==id);if(!o)return;const done={};(o.returns||[]).filter(r=>r.kind=='returned').forEach(r=>(r.items||[]).forEach(i=>done[i.idx]=(done[i.idx]||0)+i.qty));
+ const el=document.createElement('div');el.id='rt';el.dataset.oid=id;
+ el.innerHTML=`<div class=sheet><div class=top><b>↩ مرتجع — ${oc(id)}</b><button class="btn s" data-act=rtx>إغلاق</button></div><div class=card><p class=mut>اختار المنتجات اللي رجعت وكميتها. المخزون بيرجع تلقائي.</p>${o.items.map((i,k)=>{const left=(Number(i.qty)||0)-(done[k]||0);return left>0?`<div class=ln style="grid-template-columns:1fr 70px 80px"><label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type=checkbox style="width:auto" data-ri=${k}> ${x(i.name)} <small class=mut>${x(i.size)}${i.color?' — '+x(i.color):''}</small></label><select data-rq=${k}>${Array.from({length:left},(_,n)=>`<option>${n+1}</option>`).join('')}</select><span>${M(i.price)}</span></div>`:`<div class="ln mut"><span>${x(i.name)}</span><span></span><span>اترجع</span></div>`}).join('')}<label>السبب (اختياري)<textarea rows=2 data-rr maxlength=500 style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:10px"></textarea></label><div class=row><button class="btn big" data-act=rtgo>تسجيل المرتجع</button></div></div></div>`;document.body.append(el)}
+async function doRet(){const el=$('#rt'),id=+el.dataset.oid,items=[...el.querySelectorAll('[data-ri]:checked')].map(c=>({idx:+c.dataset.ri,qty:+el.querySelector('[data-rq="'+c.dataset.ri+'"]').value}));
+ if(!items.length)return toast('اختار منتج واحد على الأقل',1);if(!confirm('تسجيل المرتجع وإرجاع الكمية للمخزون؟'))return;if(S.busy)return;S.busy=true;
+ const{data,error}=await db.rpc('ship_return',{t:S.tok,p_order:id,p_items:items,p_reason:el.querySelector('[data-rr]').value.trim()});S.busy=false;
+ if(error)return toast('تعذّر الحفظ — جرّب تاني',1);if(data&&data.error)return toast(data.error,1);el.remove();toast('تم تسجيل المرتجع ✓');await load(true)}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;if(a=='rtn')openRet(+b.dataset.id);else if(a=='rtx')$('#rt').remove();else if(a=='rtgo')doRet()});
 boot();
 </script>
 </body>
